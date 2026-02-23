@@ -19,5 +19,6 @@ pandoc README.md -o out/report.pdf --pdf-engine=xelatex
 ## Git commands
 
 ```bash  
+git add -u; git commit --amend --no-edit;
 git add -u; git commit --amend --no-edit; git push --force-with-lease
 ```

@@ -1,0 +1,210 @@
+# Reprodukcija SVM modela za predviđanje uspešnosti bankarskih telemarketing kampanja
+
+**Student:** *Aleksandar Vasilic*
+**Studijski program:** *[naziv programa]*
+**Predmet:** *[naziv predmeta]*
+**Godina:** 2025/2026
+
+---
+
+## 1. Uvod
+
+Cilj ovog projekta je reprodukcija i evaluacija modela zasnovanog na Support Vector Machine (SVM) algoritmu za
+predviđanje uspešnosti bankarskih telemarketing kampanja, u skladu sa pristupom predloženim u radu:
+
+**A data-driven approach to predict the success of bank telemarketing**
+
+autora
+**Sérgio Moro**,
+**Paulo Rita** i
+**Paulo Cortez**.
+
+Problem je formulisan kao problem binarne klasifikacije, gde je ciljna promenljiva informacija o tome da li je klijent
+prihvatio ponudu oročenog depozita.
+
+U ovom projektu koristi se samo jedan model – SVM klasifikator sa nelinearnim RBF kernelom.
+
+---
+
+## 2. Skup podataka
+
+Eksperimenti su sprovedeni nad skupom podataka *Bank Marketing*, koji je javno dostupan na repozitorijumu
+**UCI Machine Learning Repository**.
+
+Ciljna promenljiva je:
+
+* `y ∈ {yes, no}`
+
+gde vrednost `yes` označava da je klijent prihvatio ponudu oročenog depozita.
+
+Skup podataka sadrži i numeričke i kategorijalne atribute koji opisuju:
+
+* informacije o klijentu,
+* prethodne kontakte,
+* karakteristike kampanje i
+* socio-ekonomske pokazatelje.
+
+U ovom projektu korišćen je fajl:
+
+```
+bank-additional-full.csv
+```
+
+---
+
+## 3. Pretprocesiranje podataka
+
+Pre treniranja modela primenjeni su sledeći koraci obrade podataka:
+
+* kategorijalne promenljive transformisane su primenom one-hot enkodiranja,
+* numeričke promenljive su standardizovane na nultu srednju vrednost i jediničnu standardnu devijaciju,
+* ciljna promenljiva je kodirana na sledeći način:
+
+    * `yes → 1`
+    * `no → 0`.
+
+Standardizacija je primenjena isključivo na numeričke atribute, što je u skladu sa preporukama za SVM modele.
+
+Podaci su podeljeni na trening i test skup korišćenjem stratifikovane podele:
+
+* trening skup: 70%
+* test skup: 30%.
+
+---
+
+## 4. Model
+
+U ovom radu korišćen je Support Vector Machine klasifikator sa RBF kernelom.
+
+Konfiguracija modela je sledeća:
+
+* kernel: RBF
+* C = 3
+* γ = 2⁻⁰·⁷⁸
+
+Navedene vrednosti hiperparametara preuzete su iz referentnog rada, gde su dobijene postupkom pretrage mreže
+parametara (grid search).
+
+Model je implementiran korišćenjem klase `sklearn.svm.SVC`.
+
+---
+
+## 5. Postupak učenja
+
+Model je treniran isključivo na trening skupu.
+
+U implementaciji je korišćen pipeline koji se sastoji od sledećih koraka:
+
+1. one-hot enkodiranje kategorijalnih atributa,
+2. standardizacija numeričkih atributa,
+3. treniranje SVM klasifikatora.
+
+Omogućeno je računanje verovatnoća pripadnosti klasi kako bi bilo moguće izračunavanje ROC krive i AUC mere.
+
+---
+
+## 6. Metrike evaluacije
+
+Performanse modela procenjene su na test skupu pomoću sledećih metrika:
+
+* Accuracy
+* ROC AUC.
+
+Pored numeričkih rezultata, prikazani su i sledeći grafički prikazi:
+
+* ROC kriva,
+* matrica konfuzije.
+
+---
+
+## 7. Eksperimentalni rezultati
+
+### 7.1 Numerički rezultati
+
+| Metrika  | Vrednost   |
+|----------|------------|
+| Accuracy | **0.9137** |
+| ROC AUC  | **0.9208** |
+
+*(Vrednosti ažurirati ukoliko se eksperiment ponovo pokrene.)*
+
+---
+
+### 7.2 ROC kriva
+
+Na slici je prikazana ROC kriva dobijena za SVM model sa RBF kernelom.
+
+```
+figures/roc_svm.png
+```
+
+---
+
+### 7.3 Matrica konfuzije
+
+Matrica konfuzije dobijena na test skupu prikazana je na slici:
+
+```
+figures/confusion_matrix_svm.png
+```
+
+---
+
+## 8. Poređenje sa referentnim radom
+
+U referentnom radu SVM model je treniran korišćenjem nelinearnog RBF kernela, pri čemu su hiperparametri birani pomoću
+grid-search postupka.
+
+Prijavljene optimalne vrednosti su:
+
+* C = 3
+* γ̂ = 2⁻⁰·⁷⁸.
+
+U ovom projektu korišćene su iste vrednosti hiperparametara.
+
+Dobijeni rezultati nalaze se u istom opsegu kao rezultati prikazani u referentnom radu. Manja odstupanja u vrednostima
+metrika mogu se objasniti sledećim faktorima:
+
+* drugačijom podelom podataka na trening i test skup,
+* drugačijom softverskom implementacijom algoritma,
+* razlikama u internim optimizacionim procedurama.
+
+U referentnom radu SVM model je treniran korišćenjem SMO algoritma, dok se u ovom projektu koristi implementacija iz
+biblioteke scikit-learn zasnovana na libsvm biblioteci.
+
+---
+
+## 9. Diskusija
+
+Dobijeni rezultati pokazuju da SVM klasifikator sa RBF kernelom ostvaruje visoke performanse u zadatku predviđanja
+uspešnosti telemarketing kampanja.
+
+Visoka vrednost ROC AUC mere ukazuje na dobru sposobnost modela da razdvoji klijente koji će prihvatiti ponudu od onih
+koji je neće prihvatiti, uprkos prisutnoj neuravnoteženosti klasa u skupu podataka.
+
+---
+
+## 10. Zaključak
+
+U ovom projektu uspešno je reprodukovan eksperiment zasnovan na SVM modelu iz referentnog rada, korišćenjem istog skupa
+podataka i slične metodologije obrade podataka.
+
+Rezultati potvrđuju da SVM sa RBF kernelom predstavlja efikasan pristup za modelovanje uspešnosti bankarskih
+telemarketing kampanja.
+
+Kao mogući pravci budućeg rada mogu se navesti:
+
+* poređenje sa logističkom regresijom ili metodama zasnovanim na stablima odlučivanja,
+* detaljnija optimizacija hiperparametara,
+* analiza uticaja pojedinačnih atributa na predikciju.
+
+---
+
+## 11. Literatura
+
+Moro, S., Rita, P., & Cortez, P.
+*A data-driven approach to predict the success of bank telemarketing.*
+
+Moro, S., Rita, P., & Cortez, P. (2014).
+*Bank Marketing [Dataset].* UCI Machine Learning Repository.
+DOI: 10.24432/C5K306
