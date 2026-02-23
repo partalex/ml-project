@@ -1,2 +1,9 @@
 # dev dependecy
 mypy
+
+# prod dependecy
+pandas
+scikit-learn
+matplotlib
+seaborn
+numpy
