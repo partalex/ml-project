@@ -12,18 +12,25 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.svm import SVC
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve, auc, confusion_matrix
 
 from src.util import split_features_target, load_data, DATA_PATH, get_column_types, OUT_PATH
 
 
-def build_pipeline(categorical_cols: list[str], numerical_cols: list[str]) -> Pipeline:
+def build_pipeline(
+        categorical_cols: list[str],
+        numerical_cols: list[str],
+        C: float = 1.0,
+        gamma: float | str = "scale",
+) -> Pipeline:
     """
     Builds a machine learning pipeline that preprocesses the data and fits a Support Vector Machine (SVM) model.
     Args:
         categorical_cols (list[str]): A list of column names that are categorical features.
         numerical_cols (list[str]): A list of column names that are numerical features.
+        C (float): Regularization parameter. Default is 1.0.
+        gamma (float | str): Kernel coefficient. Default is "scale".
     Returns:
         Pipeline: A scikit-learn Pipeline object that includes the preprocessing steps and the SVM model.
     """
@@ -43,8 +50,8 @@ def build_pipeline(categorical_cols: list[str], numerical_cols: list[str]) -> Pi
 
     model = SVC(
         kernel="rbf",
-        C=3.0,
-        gamma=0.582366793,
+        C=C,
+        gamma=gamma,
         probability=True,
         verbose=True,
         random_state=42
@@ -106,18 +113,18 @@ def plot_lift_curve(
     """
     x, lift = cumulative_lift_curve(y_true, y_score)
 
-    plt.figure(figsize=(7, 5))
-    plt.plot(x, lift, label="SVM")
-    plt.plot([0.0, 1.0], [1.0, 1.0], linestyle="--", label="Random")
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.plot(x, lift, label="SVM")
+    ax.plot([0.0, 1.0], [1.0, 1.0], linestyle="--", label="Random")
 
-    plt.xlabel("Procenat populacije")
-    plt.ylabel("Kumulativni lift")
-    plt.title(title)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(f"{OUT_PATH}/lift_curve_svm.png", dpi=300)
+    ax.set_xlabel("Procenat populacije")
+    ax.set_ylabel("Kumulativni lift")
+    ax.set_title(title)
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(f"{OUT_PATH}/lift_curve_svm.png", dpi=300)
     plt.show()
-    plt.close()
+    plt.close(fig)
 
 
 def plot_roc_curve_svm(
@@ -137,16 +144,16 @@ def plot_roc_curve_svm(
     fpr, tpr, _ = roc_curve(labels_test, y_score)
     roc_auc = auc(fpr, tpr)
 
-    plt.figure()
-    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.4f}")
-    plt.plot([0.0, 1.0], [0.0, 1.0], linestyle="--")
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title("ROC curve – SVM (RBF)")
-    plt.legend(loc="lower right")
-    plt.savefig(f"{OUT_PATH}/roc_curve_svm.png", dpi=300)
+    fig, ax = plt.subplots()
+    ax.plot(fpr, tpr, label=f"AUC = {roc_auc:.4f}")
+    ax.plot([0.0, 1.0], [0.0, 1.0], linestyle="--")
+    ax.set_xlabel("False Positive Rate")
+    ax.set_ylabel("True Positive Rate")
+    ax.set_title("ROC curve – SVM (RBF)")
+    ax.legend(loc="lower right")
+    fig.savefig(f"{OUT_PATH}/roc_curve_svm.png", dpi=300)
     plt.show()
-    plt.close()
+    plt.close(fig)
 
 
 def plot_confusion_matrix(
@@ -161,14 +168,58 @@ def plot_confusion_matrix(
     """
     cm = confusion_matrix(y_test, y_pred)
 
-    plt.figure()
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
-    plt.xlabel("Predicted")
-    plt.ylabel("Actual")
-    plt.title("Confusion Matrix – SVM (RBF)")
-    plt.savefig(f"{OUT_PATH}/confusion_matrix_svm.png", dpi=300)
+    fig, ax = plt.subplots()
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("Actual")
+    ax.set_title("Confusion Matrix – SVM (RBF)")
+    fig.savefig(f"{OUT_PATH}/confusion_matrix_svm.png", dpi=300)
     plt.show()
-    plt.close()
+    plt.close(fig)
+
+
+def grid_search_svm(
+        pipeline: Pipeline,
+        features_train: DataFrame,
+        labels_train: Series,
+) -> GridSearchCV:
+    """
+    Performs grid search with cross-validation to find the best C and gamma parameters
+    for the SVM model, following the methodology from the paper:
+        γ ∈ {2^-7, 2^-6, ..., 2^8}  and  C ∈ {2^-3, 2^-2, ..., 2^7} (including C=3).
+    Args:
+        pipeline (Pipeline): The machine learning pipeline with preprocessing and SVM.
+        features_train (DataFrame): Training features.
+        labels_train (Series): Training labels.
+    Returns:
+        GridSearchCV: The fitted grid search object with the best parameters.
+    """
+    # γ ∈ {2^-7, 2^-6, ..., 2^8}  — kao u radu
+    gamma_range = [2 ** i for i in range(-7, 9)]
+    # C opseg — uključuje C=3 iz rada
+    c_range = [2 ** i for i in range(-3, 8)]
+
+    param_grid = {
+        "model__C": c_range,
+        "model__gamma": gamma_range,
+    }
+
+    grid = GridSearchCV(
+        estimator=pipeline,
+        param_grid=param_grid,
+        scoring="roc_auc",
+        cv=5,
+        n_jobs=-1,
+        verbose=2,
+        refit=True,
+    )
+
+    grid.fit(features_train, labels_train)
+
+    print(f"\nNajbolji parametri: {grid.best_params_}")
+    print(f"Najbolji ROC AUC (CV): {grid.best_score_:.4f}")
+
+    return grid
 
 
 if __name__ == "__main__":
@@ -187,12 +238,12 @@ if __name__ == "__main__":
         stratify=labels,
     )
 
-    pipeline = build_pipeline(cat_cols, num_cols)
+    pipeline_gs = build_pipeline(cat_cols, num_cols)
+    grid = grid_search_svm(pipeline_gs, features_train, labels_train)
+    best_pipeline = grid.best_estimator_
 
-    pipeline.fit(features_train, labels_train)
-
-    y_pred = pipeline.predict(features_test)
-    y_proba = pipeline.predict_proba(features_test)[:, 1]
+    y_pred = best_pipeline.predict(features_test)
+    y_proba = best_pipeline.predict_proba(features_test)[:, 1]
 
     acc: float = accuracy_score(labels_test, y_pred)
     auc_score: float = roc_auc_score(labels_test, y_proba)
@@ -201,6 +252,6 @@ if __name__ == "__main__":
     print(f"ROC AUC  : {auc_score:.4f}")
     print(f"Elapsed time: {(time.time() - start_time) / 60:.2f} minutes")
 
-    plot_roc_curve_svm(pipeline, features_test, labels_test)
+    plot_roc_curve_svm(best_pipeline, features_test, labels_test)
     plot_confusion_matrix(labels_test, y_pred)
     plot_lift_curve(labels_test.values, y_proba, "Kumulativni Lift – SVM (RBF)")
